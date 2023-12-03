@@ -8,7 +8,7 @@ use crate::error::Result;
 /// ```rust
 /// # use retour::Result;
 /// use retour::RawDetour;
-/// use std::mem;
+/// use core::mem;
 ///
 /// fn add5(val: i32) -> i32 {
 ///   val + 5

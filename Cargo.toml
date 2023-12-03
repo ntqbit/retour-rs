@@ -12,6 +12,8 @@ version = "0.4.0-alpha.2"
 edition = "2018"
 rust-version = "1.60.0"
 
+[workspace]
+
 # [badges]
 # azure-devops = { project = "darfink/detour-rs", pipeline = "darfink.detour-rs" }
 
@@ -29,7 +31,8 @@ matches = "0.1.10"
 ctor = "0.2.2"
 
 [features]
-default = []
+default = ["std"]
+std = []
 nightly = []
 thiscall-abi = ["nightly"]
 static-detour = ["nightly"]

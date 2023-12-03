@@ -1,8 +1,8 @@
 use crate::error::{Error, Result};
 use crate::{Function, GenericDetour};
-use std::marker::Tuple;
+use core::marker::Tuple;
 use std::sync::atomic::{AtomicPtr, Ordering};
-use std::{mem, ptr};
+use core::{mem, ptr};
 
 /// A type-safe static detour.
 ///

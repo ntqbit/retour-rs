@@ -1,8 +1,8 @@
 use super::memory;
 use crate::error::{Error, Result};
 use crate::{alloc, arch, util};
-use std::cell::UnsafeCell;
-use std::fmt;
+use core::cell::UnsafeCell;
+use core::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// An architecture-independent implementation of a base detour.

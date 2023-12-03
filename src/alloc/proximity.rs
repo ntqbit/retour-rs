@@ -1,5 +1,5 @@
-use std::ops::Range;
-use std::slice;
+use core::ops::Range;
+use core::slice;
 
 use slice_pool::sync::{SliceBox, SlicePool};
 

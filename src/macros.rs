@@ -207,7 +207,7 @@ macro_rules! impl_hookable {
     impl<Ret: 'static, $($ty: 'static),*> $crate::StaticDetour<$target> {
       #[doc(hidden)]
       pub unsafe fn call(&self, $($nm : $ty),*) -> Ret {
-        let original: $target = ::std::mem::transmute(self.trampoline().expect("calling detour trampoline"));
+        let original: $target = ::core::mem::transmute(self.trampoline().expect("calling detour trampoline"));
         original($($nm),*)
       }
     }
@@ -215,7 +215,7 @@ macro_rules! impl_hookable {
     impl<Ret: 'static, $($ty: 'static),*> $crate::GenericDetour<$target> {
       #[doc(hidden)]
       pub unsafe fn call(&self, $($nm : $ty),*) -> Ret {
-        let original: $target = ::std::mem::transmute(self.trampoline());
+        let original: $target = ::core::mem::transmute(self.trampoline());
         original($($nm),*)
       }
     }
@@ -227,7 +227,7 @@ macro_rules! impl_hookable {
       #[doc(hidden)]
       pub fn call(&self, $($nm : $ty),*) -> Ret {
         unsafe {
-          let original: $fn_type = ::std::mem::transmute(self.trampoline().expect("calling detour trampoline"));
+          let original: $fn_type = ::core::mem::transmute(self.trampoline().expect("calling detour trampoline"));
           original($($nm),*)
         }
       }
@@ -237,7 +237,7 @@ macro_rules! impl_hookable {
       #[doc(hidden)]
       pub fn call(&self, $($nm : $ty),*) -> Ret {
         unsafe {
-          let original: $fn_type = ::std::mem::transmute(self.trampoline());
+          let original: $fn_type = ::core::mem::transmute(self.trampoline());
           original($($nm),*)
         }
       }
@@ -250,7 +250,7 @@ macro_rules! impl_hookable {
       type Output = Ret;
 
       unsafe fn from_ptr(ptr: *const ()) -> Self {
-        ::std::mem::transmute(ptr)
+        ::core::mem::transmute(ptr)
       }
 
       fn to_ptr(&self) -> *const () {

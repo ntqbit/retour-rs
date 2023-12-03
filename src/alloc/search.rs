@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use std::ops::Range;
+use core::ops::Range;
 
 /// Returns an iterator for free after the specified address.
 pub fn after(

@@ -1,5 +1,5 @@
 use crate::error::Result;
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 
 mod proximity;

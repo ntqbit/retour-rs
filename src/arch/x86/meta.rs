@@ -1,6 +1,6 @@
 use super::thunk;
 use crate::{error::Result, pic};
-use std::mem;
+use core::mem;
 
 /// The furthest distance between a target and its detour (2 GiB).
 pub const DETOUR_RANGE: usize = 0x8000_0000;

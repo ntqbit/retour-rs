@@ -3,8 +3,7 @@ use crate::arch::x86::thunk;
 use crate::error::{Error, Result};
 use crate::pic;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
-use std::ptr::slice_from_raw_parts;
-use std::{mem, slice};
+use core::{mem, slice};
 
 mod disasm;
 
@@ -74,7 +73,7 @@ impl Builder {
     // new Decoder before reading every individual instruction? but it'd still need
     // to be given a 15 byte slice to handle any valid x64 instruction
     let target: *const u8 = self.target.cast();
-    let slice = unsafe { slice::from_raw_parts(std::hint::black_box(target), self.margin + 15) };
+    let slice = unsafe { slice::from_raw_parts(core::hint::black_box(target), self.margin + 15) };
     let decoder = Decoder::with_ip(
       (mem::size_of::<usize>() * 8) as u32,
       slice,

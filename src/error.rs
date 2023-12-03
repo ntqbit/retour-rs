@@ -1,7 +1,7 @@
 //! Error types and utilities.
 
 use std::error::Error as StdError;
-use std::fmt;
+use core::fmt;
 
 /// The result of a detour operation.
 pub type Result<T> = ::std::result::Result<T, Error>;
