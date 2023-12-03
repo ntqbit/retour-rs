@@ -1,5 +1,6 @@
 use crate::pic::Thunkable;
 use core::mem;
+use alloc::boxed::Box;
 
 #[repr(packed)]
 struct CallAbs {

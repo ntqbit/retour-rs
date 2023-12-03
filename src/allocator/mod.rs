@@ -1,6 +1,7 @@
 use crate::error::Result;
 use core::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
+use crate::fstd::{Arc, Mutex};
+use alloc::vec::Vec;
 
 mod proximity;
 mod search;

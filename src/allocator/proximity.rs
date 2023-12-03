@@ -1,5 +1,6 @@
 use core::ops::Range;
 use core::slice;
+use alloc::vec::Vec;
 
 use slice_pool::sync::{SliceBox, SlicePool};
 

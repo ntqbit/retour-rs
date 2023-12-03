@@ -99,6 +99,8 @@
 //!
 //! For various injection methods, see the [README in the GitHub repo](https://github.com/Hpmason/retour-rs)
 
+extern crate alloc;
+
 // Re-exports
 pub use detours::*;
 pub use error::{Error, Result};
@@ -108,13 +110,14 @@ pub use traits::{Function, HookableWith};
 mod macros;
 
 // Modules
-mod alloc;
+mod allocator;
 mod arch;
 mod detours;
 mod error;
 mod pic;
 mod traits;
 mod util;
+mod fstd;
 
 #[cfg(test)]
 mod tests {

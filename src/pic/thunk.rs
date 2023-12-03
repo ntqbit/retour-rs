@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
 use super::Thunkable;
 use generic_array::{ArrayLength, GenericArray};
 

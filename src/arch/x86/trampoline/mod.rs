@@ -4,6 +4,7 @@ use crate::error::{Error, Result};
 use crate::pic;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
 use core::{mem, slice};
+use alloc::boxed::Box;
 
 mod disasm;
 

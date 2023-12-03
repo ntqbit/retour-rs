@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 pub use self::emitter::CodeEmitter;
 pub use self::thunk::{FixedThunk, UnsafeThunk};
 

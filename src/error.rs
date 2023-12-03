@@ -1,10 +1,12 @@
 //! Error types and utilities.
 
+#[cfg(std)]
 use std::error::Error as StdError;
+
 use core::fmt;
 
 /// The result of a detour operation.
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T> = ::core::result::Result<T, Error>;
 
 /// A representation of all possible errors.
 #[derive(Debug)]
@@ -29,6 +31,7 @@ pub enum Error {
   RegionFailure(region::Error),
 }
 
+#[cfg(std)]
 impl StdError for Error {
   fn source(&self) -> Option<&(dyn StdError + 'static)> {
     if let Error::RegionFailure(error) = self {

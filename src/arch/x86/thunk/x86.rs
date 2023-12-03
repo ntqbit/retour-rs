@@ -1,6 +1,7 @@
 use crate::pic::{FixedThunk, Thunkable};
 use generic_array::{typenum, GenericArray};
 use core::mem;
+use alloc::boxed::Box;
 
 #[repr(packed)]
 pub struct JumpRel {

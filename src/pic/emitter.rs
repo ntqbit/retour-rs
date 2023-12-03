@@ -1,3 +1,6 @@
+use alloc::boxed::Box;
+use alloc::vec::Vec;
+
 use super::Thunkable;
 
 /// An interface for generating PIC.

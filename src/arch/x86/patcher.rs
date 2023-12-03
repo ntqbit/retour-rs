@@ -2,6 +2,7 @@ use super::thunk;
 use crate::error::{Error, Result};
 use crate::{pic, util};
 use core::{mem, slice};
+use alloc::vec::Vec;
 
 pub struct Patcher {
   patch_area: &'static mut [u8],

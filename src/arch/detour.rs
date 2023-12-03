@@ -1,9 +1,9 @@
 use super::memory;
 use crate::error::{Error, Result};
-use crate::{alloc, arch, util};
+use crate::{allocator, arch, util};
 use core::cell::UnsafeCell;
 use core::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 /// An architecture-independent implementation of a base detour.
 ///
@@ -11,8 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// available through it's descendants.
 pub struct Detour {
   #[allow(dead_code)]
-  relay: Option<alloc::ExecutableMemory>,
-  trampoline: alloc::ExecutableMemory,
+  relay: Option<allocator::ExecutableMemory>,
+  trampoline: allocator::ExecutableMemory,
   patcher: UnsafeCell<arch::Patcher>,
   enabled: AtomicBool,
 }
