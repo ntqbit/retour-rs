@@ -125,7 +125,7 @@ pub struct CpuContext {
   // TODO: add fields for the saved FPU registers
 }
 
-pub type InjectionHandler = extern "C" fn(*mut InjectionContext);
+pub type InjectionHandler = unsafe extern "C" fn(*mut InjectionContext);
 
 pub struct Injection {
   stub: allocator::ExecutableMemory,
