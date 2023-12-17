@@ -176,6 +176,15 @@ impl<T: Function> StaticDetour<T> {
     )
   }
 
+  /// Returns the return address of the trampoline.
+  pub fn trampoline_return_address(&self) -> Result<u64> {
+    Ok(
+      unsafe { self.detour.load(Ordering::SeqCst).as_ref() }
+        .ok_or(Error::NotInitialized)?
+        .trampoline_return_address(),
+    )
+  }
+
   /// Returns a transient reference to the active detour.
   #[doc(hidden)]
   pub fn __detour(&self) -> &dyn Fn<T::Arguments, Output = T::Output>

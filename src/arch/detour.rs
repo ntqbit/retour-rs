@@ -13,6 +13,7 @@ pub struct Detour {
   #[allow(dead_code)]
   relay: Option<allocator::ExecutableMemory>,
   trampoline: allocator::ExecutableMemory,
+  return_address: u64,
   patcher: UnsafeCell<arch::Patcher>,
   enabled: AtomicBool,
 }
@@ -54,6 +55,7 @@ impl Detour {
         trampoline.prolog_size(),
       )?),
       trampoline: memory::allocate_pic(&mut pool, trampoline.emitter(), target)?,
+      return_address: trampoline.return_address(),
       enabled: AtomicBool::default(),
       relay,
     })
@@ -81,6 +83,11 @@ impl Detour {
         .as_ref()
         .expect("trampoline should not be null")
     }
+  }
+
+  /// Returns the return address of the trampoline.
+  pub fn trampoline_return_address(&self) -> u64 {
+    self.return_address
   }
 
   /// Enables or disables the detour.

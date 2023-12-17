@@ -1,6 +1,6 @@
 use crate::pic::Thunkable;
-use core::mem;
 use alloc::boxed::Box;
+use core::mem;
 
 #[repr(packed)]
 struct CallAbs {
@@ -48,6 +48,33 @@ pub fn jmp_abs(destination: usize) -> Box<dyn Thunkable> {
   };
 
   let slice: [u8; 14] = unsafe { mem::transmute(code) };
+  Box::new(slice.to_vec())
+}
+
+#[repr(packed)]
+struct PushAbs {
+  // push +8
+  opcode0: u8,
+  opcode1: u8,
+  dummy0: u32,
+  // jmp +2
+  opcode3: u8,
+  dummy1: u8,
+  // value
+  value: u64,
+}
+
+pub fn push_64(value: u64) -> Box<dyn Thunkable> {
+  let code = PushAbs {
+    opcode0: 0xFF,
+    opcode1: 0x35,
+    dummy0: 0x2,
+    opcode3: 0xEB,
+    dummy1: 0x8,
+    value,
+  };
+
+  let slice: [u8; 16] = unsafe { mem::transmute(code) };
   Box::new(slice.to_vec())
 }
 

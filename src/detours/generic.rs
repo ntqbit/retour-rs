@@ -84,6 +84,11 @@ impl<T: Function> GenericDetour<T> {
   pub fn trampoline(&self) -> &() {
     self.detour.trampoline()
   }
+
+  /// Returns the return address of the trampoline.
+  pub fn trampoline_return_address(&self) -> u64 {
+    self.detour.trampoline_return_address()
+  }
 }
 
 unsafe impl<T: Function> Send for GenericDetour<T> {}

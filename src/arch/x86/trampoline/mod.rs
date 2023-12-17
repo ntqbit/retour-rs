@@ -2,9 +2,9 @@ use self::disasm::*;
 use crate::arch::x86::thunk;
 use crate::error::{Error, Result};
 use crate::pic;
-use iced_x86::{Decoder, DecoderOptions, Instruction};
-use core::{mem, slice};
 use alloc::boxed::Box;
+use core::{mem, slice};
+use iced_x86::{Decoder, DecoderOptions, Instruction};
 
 mod disasm;
 
@@ -12,6 +12,7 @@ mod disasm;
 pub struct Trampoline {
   emitter: pic::CodeEmitter,
   prolog_size: usize,
+  return_address: u64,
 }
 
 impl Trampoline {
@@ -28,6 +29,11 @@ impl Trampoline {
   /// Returns the size of the prolog (i.e the amount of disassembled bytes).
   pub fn prolog_size(&self) -> usize {
     self.prolog_size
+  }
+
+  /// Returns the return address of the trampoline.
+  pub fn return_address(&self) -> u64 {
+    self.return_address
   }
 }
 
@@ -65,6 +71,7 @@ impl Builder {
   /// may be undefined
   pub unsafe fn build(mut self) -> Result<Trampoline> {
     let mut emitter = pic::CodeEmitter::new();
+    let mut return_address = 0;
 
     // 15 = max size of x64 instruction
     // safety: we don't know the end address of a function so this could be too far
@@ -102,7 +109,8 @@ impl Builder {
       // Determine whether enough bytes for the margin has been disassembled
       if self.total_bytes_disassembled >= self.margin && !self.finished {
         // Add a jump to the first instruction after the prolog
-        emitter.add_thunk(thunk::jmp(instruction.next_ip() as usize));
+        return_address = instruction.next_ip();
+        emitter.add_thunk(thunk::jmp(return_address as usize));
         self.finished = true;
       }
 
@@ -114,6 +122,7 @@ impl Builder {
     Ok(Trampoline {
       prolog_size: self.total_bytes_disassembled,
       emitter,
+      return_address,
     })
   }
 

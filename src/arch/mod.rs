@@ -27,6 +27,7 @@ cfg_if! {
 }
 
 mod detour;
+pub mod injection;
 mod memory;
 
 /// Returns true if the displacement is within a certain range.

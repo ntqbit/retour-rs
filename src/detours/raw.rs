@@ -72,4 +72,9 @@ impl RawDetour {
   pub fn trampoline(&self) -> &() {
     self.0.trampoline()
   }
+
+  /// Returns the return address of the trampoline.
+  pub fn trampoline_return_address(&self) -> u64 {
+    self.0.trampoline_return_address()
+  }
 }

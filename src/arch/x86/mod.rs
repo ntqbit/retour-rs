@@ -3,7 +3,7 @@ pub use self::trampoline::Trampoline;
 
 pub mod meta;
 mod patcher;
-mod thunk;
+pub mod thunk;
 mod trampoline;
 
 // TODO: Add test for targets further away than DETOUR_RANGE
