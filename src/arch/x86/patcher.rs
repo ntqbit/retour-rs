@@ -1,13 +1,27 @@
 use super::thunk;
 use crate::error::{Error, Result};
+use crate::pic::Thunkable;
 use crate::{pic, util};
-use core::{mem, slice};
 use alloc::vec::Vec;
+use core::{mem, slice};
+
+#[derive(Debug)]
+pub enum BranchType {
+  Jmp,
+  Call,
+}
 
 pub struct Patcher {
   patch_area: &'static mut [u8],
   original_prolog: Vec<u8>,
   detour_prolog: Vec<u8>,
+}
+
+fn build_branch_instruction(branch_type: BranchType, detour: usize) -> Box<dyn Thunkable> {
+  match branch_type {
+    BranchType::Jmp => thunk::x86::jmp_rel32(detour),
+    BranchType::Call => thunk::x86::call_rel32(detour),
+  }
 }
 
 impl Patcher {
@@ -18,10 +32,16 @@ impl Patcher {
   /// * `target` - An address that should be hooked.
   /// * `detour` - An address that the target should be redirected to.
   /// * `prolog_size` - The available inline space for the hook.
-  pub unsafe fn new(target: *const (), detour: *const (), prolog_size: usize) -> Result<Patcher> {
+  /// * `branch_type` - The branch instruction.
+  pub unsafe fn new(
+    target: *const (),
+    detour: *const (),
+    prolog_size: usize,
+    branch_type: BranchType,
+  ) -> Result<Patcher> {
     // Calculate the patch area (i.e if a short or long jump should be used)
     let patch_area = Self::patch_area(target, prolog_size)?;
-    let emitter = Self::hook_template(detour, patch_area);
+    let emitter = Self::hook_template(detour, patch_area, branch_type);
 
     let patch_address = patch_area.as_ptr() as *const ();
     let original_prolog = patch_area.to_vec();
@@ -86,11 +106,15 @@ impl Patcher {
   }
 
   /// Creates a redirect code template for the targetted patch area.
-  fn hook_template(detour: *const (), patch_area: &[u8]) -> pic::CodeEmitter {
+  fn hook_template(
+    detour: *const (),
+    patch_area: &[u8],
+    branch_type: BranchType,
+  ) -> pic::CodeEmitter {
     let mut emitter = pic::CodeEmitter::new();
 
     // Both hot patch and normal detours use a relative long jump
-    emitter.add_thunk(thunk::x86::jmp_rel32(detour as usize));
+    emitter.add_thunk(build_branch_instruction(branch_type, detour as usize));
 
     // The hot patch relies on a small jump to get to the long jump
     let jump_rel32_size = mem::size_of::<thunk::x86::JumpRel>();

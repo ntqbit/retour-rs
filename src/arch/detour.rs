@@ -1,4 +1,5 @@
 use super::memory;
+use super::x86::BranchType;
 use crate::error::{Error, Result};
 use crate::{allocator, arch, util};
 use core::cell::UnsafeCell;
@@ -18,26 +19,45 @@ pub struct Detour {
   enabled: AtomicBool,
 }
 
-impl Detour {
-  pub unsafe fn new(target: *const (), detour: *const ()) -> Result<Self> {
-    if target == detour {
+pub struct DetourBuilder {
+  target: *const (),
+  detour: *const (),
+  branch_type: arch::BranchType,
+}
+
+impl DetourBuilder {
+  pub fn new(target: *const (), detour: *const ()) -> Self {
+    Self {
+      target,
+      detour,
+      branch_type: arch::BranchType::Jmp,
+    }
+  }
+
+  pub fn branch(mut self, branch_type: BranchType) -> Self {
+    self.branch_type = branch_type;
+    self
+  }
+
+  pub unsafe fn build(self) -> Result<Detour> {
+    if self.target == self.detour {
       Err(Error::SameAddress)?;
     }
 
     // Lock this so OS operations are not performed in parallell
     let mut pool = memory::POOL.lock().unwrap();
 
-    if !util::is_executable_address(target)? || !util::is_executable_address(detour)? {
+    if !util::is_executable_address(self.target)? || !util::is_executable_address(self.detour)? {
       Err(Error::NotExecutable)?;
     }
 
     // Create a trampoline generator for the target function
-    let margin = arch::meta::prolog_margin(target);
-    let trampoline = arch::Trampoline::new(target, margin)?;
+    let margin = arch::meta::prolog_margin(self.target);
+    let trampoline = arch::Trampoline::new(self.target, margin)?;
 
     // A relay is used in case a normal branch cannot reach the destination
-    let relay = if let Some(emitter) = arch::meta::relay_builder(target, detour)? {
-      Some(memory::allocate_pic(&mut pool, &emitter, target)?)
+    let relay = if let Some(emitter) = arch::meta::relay_builder(self.target, self.detour)? {
+      Some(memory::allocate_pic(&mut pool, &emitter, self.target)?)
     } else {
       None
     };
@@ -46,19 +66,26 @@ impl Detour {
     let detour = relay
       .as_ref()
       .map(|code| code.as_ptr() as *const ())
-      .unwrap_or(detour);
+      .unwrap_or(self.detour);
 
     Ok(Detour {
       patcher: UnsafeCell::new(arch::Patcher::new(
-        target,
+        self.target,
         detour,
         trampoline.prolog_size(),
+        self.branch_type,
       )?),
-      trampoline: memory::allocate_pic(&mut pool, trampoline.emitter(), target)?,
+      trampoline: memory::allocate_pic(&mut pool, trampoline.emitter(), self.target)?,
       return_address: trampoline.return_address(),
       enabled: AtomicBool::default(),
       relay,
     })
+  }
+}
+
+impl Detour {
+  pub unsafe fn new(target: *const (), detour: *const ()) -> Result<Self> {
+    DetourBuilder::new(target, detour).build()
   }
 
   /// Enables the detour.

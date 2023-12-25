@@ -6,6 +6,7 @@ use core::arch::global_asm;
 use crate::{allocator, pic::CodeEmitter};
 
 use super::{
+  detour::DetourBuilder,
   memory::{self, POOL},
   Detour,
 };
@@ -17,14 +18,25 @@ global_asm!(
 
     __retour_injection64_start:
         pushfq
+
+        sub qword ptr [rsp+0x20], 0x5     # Substract the branch instruction (call) length from the RIP.
+
+        push rsp
+        add qword ptr [rsp], 0x28 # restore the rsp value before entering the stub
         push rbp
+
+        # Align the stack by 0x10 bytes. Required by calling conventions and for FPU registers
         mov rbp, rsp
         and rsp, ~0xF
         sub rsp, 0x200
         
+        # Save FPU registers.
         fxsave [rsp]
 
-        push qword ptr [rbp+0x8] # rflags
+        # Must be even numebr of pushes to keep the stack aligned by 0x10.
+        # Save the registers.
+        push qword ptr [rbp+0x10] # rflags
+        push qword ptr [rbp+0x30] # rip
         push r15
         push r14
         push r13
@@ -35,26 +47,29 @@ global_asm!(
         push r8
         push rdi
         push rsi
-        push qword ptr [rbp] # rbp
+        push qword ptr [rbp+0x8]  # rsp
+        push qword ptr [rbp]      # rbp
         push rdx
         push rcx
         push rbx
         push rax
         
-        sub rsp, 0x8 # keep the stack pointer aligned by 0x10
-        push qword ptr [rbp+0x18]
+        add rbp, 0x18
+        push qword ptr [rbp+0x8]  # Argument
+        push qword ptr [rbp+0x10] # Return address
 
         mov rcx, rsp
-        call [rbp+0x10]
+        call [rbp]
 
-        pop qword ptr [rbp+0x18]
-        add rsp, 0x8
+        pop qword ptr [rbp+0x18]  # Pop the return address.
+        add rsp, 0x8              # Skip the argument.
         
         pop rax
         pop rbx
         pop rcx
         pop rdx
         pop qword ptr [rbp]
+        pop qword ptr [rbp+0x10]
         pop rsi
         pop rdi
         pop r8
@@ -65,14 +80,33 @@ global_asm!(
         pop r13
         pop r14
         pop r15
-        pop qword ptr [rbp+0x10]
+        add rsp, 0x8              # Skip rip
+        pop qword ptr [rbp+0x8]   # Pop rflags
 
+        # Restore the FPU registers.
         fxrstor [rsp]
 
+        # Temporarily set the new stack pointer.
+        mov rsp, [rbp+0x10]
+
+        # Push the return address on the new stack.
+        push qword ptr [rbp+0x18]
+
+        sub qword ptr [rbp+0x10], 0x8
+
+        # Restore the stack skipping the header.
         mov rsp, rbp
+
+        # Restore rbp
         pop rbp
-        add rsp, 0x8
+
+        # Restore rflags.
         popfq
+
+        # Pop the rsp.
+        pop rsp
+
+        # Return to the procedure.
         ret
     __retour_injection64_end:
 "
@@ -97,8 +131,8 @@ fn injection_stub() -> &'static [u8] {
 #[allow(unused)]
 #[derive(Debug, Clone, Copy)]
 pub struct InjectionContext {
-  pub return_address: u64,
-  pub _reserved: u64,
+  pub return_address: usize,
+  pub argument: usize,
   pub cpu_context: CpuContext,
 }
 
@@ -111,6 +145,7 @@ pub struct CpuContext {
   pub rcx: u64,
   pub rdx: u64,
   pub rbp: u64,
+  pub rsp: u64,
   pub rsi: u64,
   pub rdi: u64,
   pub r8: u64,
@@ -121,6 +156,7 @@ pub struct CpuContext {
   pub r13: u64,
   pub r14: u64,
   pub r15: u64,
+  pub rip: u64,
   pub rflags: u64,
   // TODO: add fields for the saved FPU registers
 }
@@ -134,7 +170,11 @@ pub struct Injection {
 }
 
 impl Injection {
-  pub unsafe fn new(target: *const (), injection: InjectionHandler) -> Result<Self> {
+  pub unsafe fn new(
+    target: *const (),
+    injection: InjectionHandler,
+    argument: usize,
+  ) -> Result<Self> {
     let (stub, mut stub_entry) = {
       let mut pool = POOL.lock().unwrap();
 
@@ -144,17 +184,20 @@ impl Injection {
         memory::allocate_pic(&mut pool, &emitter, target)?
       };
 
-      let stub_entry = pool.allocate(target, 0x2E)?;
+      let stub_entry = pool.allocate(target, 0x3E)?;
 
       (stub, stub_entry)
     };
 
-    let detour = Detour::new(target, stub_entry.as_ptr() as *const ())?;
+    let detour = DetourBuilder::new(target, stub_entry.as_ptr() as *const ())
+      .branch(super::x86::BranchType::Call)
+      .build()?;
     let trampoline = detour.trampoline() as *const () as u64;
 
     {
       let mut emitter = CodeEmitter::new();
       emitter.add_thunk(thunk::push(trampoline));
+      emitter.add_thunk(thunk::push(argument as u64));
       emitter.add_thunk(thunk::push(injection as u64));
       emitter.add_thunk(thunk::jmp(stub.as_ptr() as usize));
       let code = emitter.emit(stub_entry.as_ptr() as *const _);
