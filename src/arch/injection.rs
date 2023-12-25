@@ -55,10 +55,11 @@ global_asm!(
         push rax
         
         add rbp, 0x18
-        push qword ptr [rbp+0x8]  # Argument
+        sub rsp, 0x8              # Reserved
         push qword ptr [rbp+0x10] # Return address
 
-        mov rcx, rsp
+        mov rdx, [rbp+0x8]        # Argument
+        mov rcx, rsp              # Context
         call [rbp]
 
         pop qword ptr [rbp+0x18]  # Pop the return address.
@@ -132,7 +133,7 @@ fn injection_stub() -> &'static [u8] {
 #[derive(Debug, Clone, Copy)]
 pub struct InjectionContext {
   pub return_address: usize,
-  pub argument: usize,
+  pub reserved: usize,
   pub cpu_context: CpuContext,
 }
 
@@ -161,7 +162,7 @@ pub struct CpuContext {
   // TODO: add fields for the saved FPU registers
 }
 
-pub type InjectionHandler = unsafe extern "C" fn(*mut InjectionContext);
+pub type InjectionHandler = unsafe extern "C" fn(*mut InjectionContext, argument: usize);
 
 pub struct Injection {
   stub: allocator::ExecutableMemory,
@@ -244,5 +245,77 @@ impl Injection {
   /// Returns the return address of the stub.
   pub fn stub_entry_address(&self) -> u64 {
     self.stub_entry.as_ptr() as u64
+  }
+}
+
+pub struct ClosureInjection {
+  closure: *mut Box<dyn FnMut(*mut InjectionContext)>,
+  injection: Injection,
+}
+
+extern "C" fn __closure_injection(ctx: *mut InjectionContext, argument: usize) {
+  unsafe {
+    (*(argument as *mut Box<dyn FnMut(*mut InjectionContext)>))(ctx);
+  }
+}
+
+impl ClosureInjection {
+  pub unsafe fn new(
+    target: *const (),
+    closure: Box<dyn FnMut(*mut InjectionContext)>,
+  ) -> Result<Self> {
+    let closure_raw = Box::into_raw(Box::new(closure));
+
+    Ok(Self {
+      closure: closure_raw,
+      injection: Injection::new(
+        target,
+        __closure_injection,
+        closure_raw as *const () as usize,
+      )?,
+    })
+  }
+
+  /// Enables the detour.
+  pub unsafe fn enable(&self) -> Result<()> {
+    self.injection.enable()
+  }
+
+  /// Disables the detour.
+  pub unsafe fn disable(&self) -> Result<()> {
+    self.injection.disable()
+  }
+
+  /// Returns whether the detour is enabled or not.
+  pub fn is_enabled(&self) -> bool {
+    self.injection.is_enabled()
+  }
+
+  /// Returns a reference to the generated trampoline.
+  pub fn trampoline(&self) -> &() {
+    self.injection.trampoline()
+  }
+
+  /// Returns the return address of the trampoline.
+  pub fn trampoline_return_address(&self) -> u64 {
+    self.injection.trampoline_return_address()
+  }
+
+  /// Returns the return address of the stub.
+  pub fn stub_address(&self) -> u64 {
+    self.injection.stub_address()
+  }
+
+  /// Returns the return address of the stub.
+  pub fn stub_entry_address(&self) -> u64 {
+    self.injection.stub_entry_address()
+  }
+}
+
+impl Drop for ClosureInjection {
+  fn drop(&mut self) {
+    unsafe {
+      core::mem::drop(Box::from_raw(self.closure));
+    }
   }
 }
