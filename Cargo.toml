@@ -59,7 +59,7 @@ crate-type = ["cdylib"]
 version = "1.20"
 default-features = false
 # https://github.com/icedland/iced/blob/master/src/rust/iced-x86/README.md#crate-feature-flags
-features = ["no_std", "decoder", "fast_fmt"]
+features = ["no_std", "decoder", "encoder", "fast_fmt"]
 
 [target."cfg(windows)".dev-dependencies.windows]
 version = "0.48"

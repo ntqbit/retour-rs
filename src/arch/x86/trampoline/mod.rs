@@ -4,7 +4,7 @@ use crate::error::{Error, Result};
 use crate::pic;
 use alloc::boxed::Box;
 use core::{mem, slice};
-use iced_x86::{Decoder, DecoderOptions, Instruction};
+use iced_x86::{Decoder, DecoderOptions, Encoder, Instruction};
 
 mod disasm;
 
@@ -173,30 +173,32 @@ impl Builder {
     }
 
     // These need to be captured by the closure
-    let instruction_address = instruction.ip() as isize;
-    let instruction_bytes = instruction_bytes.to_vec();
+    let instruction_len = instruction.len();
+    let instruction = instruction.clone();
 
     Ok(Box::new(pic::UnsafeThunk::new(
       move |offset| {
-        let mut bytes = instruction_bytes.clone();
+        // Displacement is not always the last four bytes of the instruction.
+        // Use proper instruction encoding for changing the displacement.
+        let mut encoder = Encoder::new(64);
 
-        // Calculate the new relative displacement for the operand. The
-        // instruction is relative so the offset (i.e where the trampoline is
-        // allocated), must be within a range of +/- 2GB.
-        let adjusted_displacement = instruction_address
-          .wrapping_sub(offset as isize)
-          .wrapping_add(displacement);
-        assert!(crate::arch::is_within_range(adjusted_displacement));
+        encoder
+          .encode(&instruction, offset as u64)
+          .expect("could not encode instruction");
+        let mut buf = encoder.take_buffer();
 
-        // The displacement value is placed at (instruction - disp32)
-        let index = instruction_bytes.len() - mem::size_of::<u32>();
+        if buf.len() > instruction_len {
+          panic!("Encoded instruction length is greater than the original instruction.");
+        }
 
-        // Write the adjusted displacement offset to the operand
-        let as_bytes: [u8; 4] = (adjusted_displacement as u32).to_ne_bytes();
-        bytes[index..instruction_bytes.len()].copy_from_slice(&as_bytes);
-        bytes
+        if buf.len() < instruction_len {
+          // Add nops.
+          buf.resize(instruction_len, 0x90);
+        }
+
+        buf
       },
-      instruction.len(),
+      instruction_len,
     )))
   }
 

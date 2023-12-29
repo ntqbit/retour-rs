@@ -5,11 +5,7 @@ use core::arch::global_asm;
 
 use crate::{allocator, pic::CodeEmitter};
 
-use super::{
-  detour::DetourBuilder,
-  memory::{self, POOL},
-  Detour,
-};
+use super::{detour::DetourBuilder, memory::POOL, Detour};
 
 // Only for x64
 global_asm!(
@@ -60,7 +56,10 @@ global_asm!(
 
         mov rdx, [rbp+0x8]        # Argument
         mov rcx, rsp              # Context
+        
+        sub rsp, 0x20             # Shadow space
         call [rbp]
+        add rsp, 0x20
 
         pop qword ptr [rbp+0x18]  # Pop the return address.
         add rsp, 0x8              # Skip the argument.
@@ -165,7 +164,6 @@ pub struct CpuContext {
 pub type InjectionHandler = unsafe extern "C" fn(*mut InjectionContext, argument: usize);
 
 pub struct Injection {
-  stub: allocator::ExecutableMemory,
   stub_entry: allocator::ExecutableMemory,
   detour: Detour,
 }
@@ -176,19 +174,7 @@ impl Injection {
     injection: InjectionHandler,
     argument: usize,
   ) -> Result<Self> {
-    let (stub, mut stub_entry) = {
-      let mut pool = POOL.lock().unwrap();
-
-      let stub = {
-        let mut emitter = CodeEmitter::new();
-        emitter.add_thunk(Box::new(injection_stub()));
-        memory::allocate_pic(&mut pool, &emitter, target)?
-      };
-
-      let stub_entry = pool.allocate(target, 0x3E)?;
-
-      (stub, stub_entry)
-    };
+    let mut stub_entry = POOL.lock().unwrap().allocate(target, 0x3E)?;
 
     let detour = DetourBuilder::new(target, stub_entry.as_ptr() as *const ())
       .branch(super::x86::BranchType::Call)
@@ -200,16 +186,12 @@ impl Injection {
       emitter.add_thunk(thunk::push(trampoline));
       emitter.add_thunk(thunk::push(argument as u64));
       emitter.add_thunk(thunk::push(injection as u64));
-      emitter.add_thunk(thunk::jmp(stub.as_ptr() as usize));
+      emitter.add_thunk(thunk::jmp(injection_stub().as_ptr() as usize));
       let code = emitter.emit(stub_entry.as_ptr() as *const _);
       stub_entry.copy_from_slice(code.as_slice());
     }
 
-    Ok(Self {
-      stub,
-      stub_entry,
-      detour,
-    })
+    Ok(Self { stub_entry, detour })
   }
 
   /// Enables the detour.
@@ -235,11 +217,6 @@ impl Injection {
   /// Returns the return address of the trampoline.
   pub fn trampoline_return_address(&self) -> u64 {
     self.detour.trampoline_return_address()
-  }
-
-  /// Returns the return address of the stub.
-  pub fn stub_address(&self) -> u64 {
-    self.stub.as_ptr() as u64
   }
 
   /// Returns the return address of the stub.
@@ -299,11 +276,6 @@ impl ClosureInjection {
   /// Returns the return address of the trampoline.
   pub fn trampoline_return_address(&self) -> u64 {
     self.injection.trampoline_return_address()
-  }
-
-  /// Returns the return address of the stub.
-  pub fn stub_address(&self) -> u64 {
-    self.injection.stub_address()
   }
 
   /// Returns the return address of the stub.
