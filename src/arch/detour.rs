@@ -100,7 +100,7 @@ impl Detour {
 
   /// Returns whether the detour is enabled or not.
   pub fn is_enabled(&self) -> bool {
-    self.enabled.load(Ordering::SeqCst)
+    self.enabled.load(Ordering::Relaxed)
   }
 
   /// Returns a reference to the generated trampoline.
@@ -121,7 +121,7 @@ impl Detour {
   unsafe fn toggle(&self, enabled: bool) -> Result<()> {
     let _guard = memory::POOL.lock().unwrap();
 
-    if self.enabled.load(Ordering::SeqCst) == enabled {
+    if self.enabled.load(Ordering::Acquire) == enabled {
       return Ok(());
     }
 
@@ -137,7 +137,7 @@ impl Detour {
 
     // Copy either the detour or the original bytes of the function
     (*self.patcher.get()).toggle(enabled);
-    self.enabled.store(enabled, Ordering::SeqCst);
+    self.enabled.store(enabled, Ordering::Release);
     Ok(())
   }
 }
