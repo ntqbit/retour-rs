@@ -24,10 +24,12 @@ global_asm!(
         # Align the stack by 0x10 bytes. Required by calling conventions and for FPU registers
         mov rbp, rsp
         and rsp, ~0xF
-        sub rsp, 0x200
+        sub rsp, 0x210
         
+        stmxcsr [rsp] # Store MXCSR
+
         # Save FPU registers.
-        fxsave [rsp]
+        fxsave [rsp+0x10]
 
         # Must be even numebr of pushes to keep the stack aligned by 0x10.
         # Save the registers.
@@ -57,9 +59,11 @@ global_asm!(
         mov rdx, [rbp+0x8]        # Argument
         mov rcx, rsp              # Context
         
-        sub rsp, 0x20             # Shadow space
+        sub rsp, 0x20             # Add shadow space.
+
         call [rbp]
-        add rsp, 0x20
+        
+        add rsp, 0x20             # Remove shadow space.
 
         pop qword ptr [rbp+0x18]  # Pop the return address.
         add rsp, 0x8              # Skip the argument.
@@ -84,7 +88,9 @@ global_asm!(
         pop qword ptr [rbp+0x8]   # Pop rflags
 
         # Restore the FPU registers.
-        fxrstor [rsp]
+        fxrstor [rsp+0x10]
+
+        ldmxcsr [rsp]             # Load MXCSR
 
         # Temporarily set the new stack pointer.
         mov rsp, [rbp+0x10]
